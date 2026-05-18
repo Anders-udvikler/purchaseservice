@@ -2255,11 +2255,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ander\\Ny mappe (5)\\Ny mappe (5).csproj",
-      "projectName": "Ny mappe (5)",
-      "projectPath": "C:\\Users\\ander\\Ny mappe (5)\\Ny mappe (5).csproj",
+      "projectUniqueName": "C:\\Users\\ander\\purchaseservice\\purchaseservice.csproj",
+      "projectName": "purchaseservice",
+      "projectPath": "C:\\Users\\ander\\purchaseservice\\purchaseservice.csproj",
       "packagesPath": "C:\\Users\\ander\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ander\\Ny mappe (5)\\obj\\",
+      "outputPath": "C:\\Users\\ander\\purchaseservice\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

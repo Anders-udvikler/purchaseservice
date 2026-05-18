@@ -1,6 +1,0 @@
-@Ny_mappe__5__HostAddress = http://localhost:5188
-
-GET {{Ny_mappe__5__HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

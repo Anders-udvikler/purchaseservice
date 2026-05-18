@@ -18,12 +18,12 @@ namespace Furnitureservice
 
         public async Task<Furniture> GetFurnitureById(int id)
         {
-            return await _furnitureCollection.Find(f => f.Id == id).FirstOrDefaultAsync();
+            return await _furnitureCollection.Find(f => f.Id.Equals(id)).FirstOrDefaultAsync();
         }
 
         public async Task UpdateFurniture(int id, Furniture updatedFurniture)
         {
-            await _furnitureCollection.ReplaceOneAsync(f => f.Id == id, updatedFurniture);
+            await _furnitureCollection.ReplaceOneAsync(f => f.Id.Equals(id), updatedFurniture);
         }
 
     }

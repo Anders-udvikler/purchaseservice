@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Ny mappe (5)")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f05da1f0c42a67069fbd33471207b8458ee7dfd7")]
 [assembly: System.Reflection.AssemblyProductAttribute("Ny mappe (5)")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Ny mappe (5)")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

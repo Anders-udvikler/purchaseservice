@@ -1,0 +1,8 @@
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).csproj.AssemblyReference.cache
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).AssemblyInfoInputs.cache
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).AssemblyInfo.cs
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).csproj.CoreCompileInputs.cache
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).MvcApplicationPartsAssemblyInfo.cs
+C:\Users\ander\Ny mappe (5)\obj\Debug\net10.0\Ny mappe (5).MvcApplicationPartsAssemblyInfo.cache

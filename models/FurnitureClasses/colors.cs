@@ -10,12 +10,12 @@ namespace Colors
 
 
         [BsonElement("id")]
-        public string? id { get; set; }
+        public string? Id { get; set; }
 
         [BsonElement("name")]
-        public string? name { get; set; }
+        public string? Name { get; set; }
 
         [BsonElement("href")]
-        public string? href { get; set; }
+        public string? Href { get; set; }
     }
 }

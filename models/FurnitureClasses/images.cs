@@ -13,6 +13,6 @@ namespace Images
 
 
         [BsonElement("url")]
-        public string? url { get; set; }
+        public string? Url { get; set; }
     }
 }

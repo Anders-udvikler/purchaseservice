@@ -23,37 +23,37 @@ public class Furniture
     public string? Guid { get; set; }
 
     [BsonElement("personId")]
-    public string? personId { get; set; }
+    public string? PersonId { get; set; }
 
     [BsonElement("title")]
-    public string? title { get; set; }
+    public string? Title { get; set; }
 
     [BsonElement("description")]
-    public string? description { get; set; }
+    public string? Description { get; set; }
 
     [BsonElement("size")]
-    public string? size { get; set; }
+    public string? Size { get; set; }
 
     [BsonElement("quantity")]
-    public string? quantity { get; set; }
+    public string? Quantity { get; set; }
 
     [BsonElement("price")]
-    public int price { get; set; }
+    public int Price { get; set; }
 
     [BsonElement("condition")]
-    public string? condition { get; set; }
+    public string? Condition { get; set; }
 
     [BsonElement("zip_code")]
-    public string? zip_code { get; set; }
+    public string? ZipCode { get; set; }
 
     [BsonElement("status")]
-    public Status? status { get; set; }
+    public Status? Status { get; set; }
 
     [BsonElement("color")]
-    public Color? color { get; set; }
+    public Color? Color { get; set; }
 
     [BsonElement("categories")]
-    public List<Category>? categories { get; set; }
+    public List<Category>? Categories { get; set; }
 
     [BsonElement("images")]
     public List<Image>? Images { get; set; } = new List<Image>();

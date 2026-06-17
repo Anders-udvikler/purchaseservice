@@ -3,11 +3,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 namespace Categories
 {
+    [BsonIgnoreExtraElements]
     public class Category
     {
-        [BsonId]
-        public string _Id { get; set; }
-
         [BsonElement("id")]
         public string? Id { get; set; }
 
@@ -15,6 +13,6 @@ namespace Categories
         public string? Name { get; set;}
 
         [BsonElement("subcats")]
-        public List<Subcategory>? subcats { get; set; }
+        public List<Subcategory>? Subcats { get; set; }
     }
 }

@@ -1,8 +1,11 @@
 using Furnitureservice;
 using HotChocolate;
 using Furnitures;
-using Reports;
-using UserService;
+using service;
+using Purchase.Models;
+using service.Grapql;
+using Stripe;
+using models;
 
 namespace mutation
 {
@@ -43,12 +46,12 @@ namespace mutation
 /// <param name="repo">The report service repository.</param>
 /// <param name="report">The report to add.</param>
 /// <returns>The added Report object, or null if the operation fails.</returns>
-        public async Task<Report> AddReport(
-        [Service] ReportService repo, Report report)
+        public async Task<Order> AddOrder(
+        [Service] OrderService repo, Order order)
         {
             try
             {
-                return await repo.AddReport(report);
+                return await repo.AddOrder(order);
             }
             catch (Exception ex)
             {
@@ -63,12 +66,12 @@ namespace mutation
 /// <param name="repo">The report service repository.</param>
 /// <param name="report">The report to delete.</param>
 /// <returns>A task representing the asynchronous operation.</returns>
-        public async Task DeleteReport(
-        [Service] ReportService repo, Report report)
+        public async Task DeleteOrder(
+        [Service] OrderService repo, Order order)
         {
             try
             {
-                await repo.DeleteReport(report.Id);
+                await repo.DeleteOrder(order.Id);
             }
             catch (Exception ex)
             {
@@ -76,23 +79,9 @@ namespace mutation
             }
         }
 
-/// <summary>
-/// Updates an existing report in the MongoDB collection. The method takes a string ID representing the report to be updated and a Report object containing the updated information. It uses the UpdateReport method of the ReportService to perform the update operation. If an error occurs during the update process, it logs the error message.
-/// </summary>
-/// <param name="repo">The report service repository.</param>
-/// <param name="id">The ID of the report to update.</param>
-/// <param name="updatedReport">The updated report object.</param>
-/// <returns>A task representing the asynchronous operation.</returns>
-        public async Task UpdateReport(
-        [Service] ReportService repo, string id, Report updatedReport)
+        public async Task AddEnvelope(
+            [Service] EventEnvelopeService repo,EventEnvelope<Order> envelope)
         {
-            try
-            {
-                await repo.UpdateReport(id, updatedReport);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error adding report: {ex.Message}");
-            }
-    }
+            await repo.Addevent(envelope);
+        }
 }}

@@ -1,8 +1,11 @@
 using Furnitureservice;
 using HotChocolate;
 using Furnitures;
-using Reports;
-using UserService;
+using Purchase.Models;
+using service;
+using models;
+using Stripe;
+using service.Grapql;
 
 namespace query
 {
@@ -32,30 +35,30 @@ namespace query
             var Furniture = await repo.GetFurnitureById(id);return Furniture;
         }
 
-/// <summary>
-/// Retrieves all reports from the MongoDB collection. The method returns a list of Report objects representing all the reports stored in the collection. If an error occurs during the retrieval process, it logs the error message and rethrows the exception.
-/// </summary>
-/// <param name="repo">The report service repository.</param>
-/// <returns>A list of all reports.</returns>
-        public async Task<List<Report>> GetAllReports(
-        [Service] ReportService repo)
+        public async Task<Order> GetOrderById(
+            [Service] OrderService repo,string id
+        )
         {
-            var allReports = await repo.GetAllReports();
-            return allReports;
+            var order = await repo.GetOrderById(id);
+            return order;
         }
 
-
-/// <summary>
-///     Retrieves a report from the MongoDB collection based on the provided ID. The method takes a string parameter representing the ID of the report to be retrieved and returns the corresponding Report object if found. If an error occurs during the retrieval process, it logs the error message and rethrows the exception.
-/// </summary>
-/// <param name="repo">The report service repository.</param>
-/// <param name="id">The ID of the report to retrieve.</param>
-/// <returns>The retrieved Report object, or null if not found.</returns>
-        public async Task<Report> GetReportById(
-        [Service] ReportService repo, string id)
+        public async Task<List<EventEnvelope<Order>>> GetEnvelopes(
+            [Service] EventEnvelopeService repo,string id
+        )
         {
-            var report = await repo.GetReportById(id);
-            return report;
+            var order = await repo.GetAllEnvelopes();
+            return order;
         }
+
+        public async Task<EventEnvelope<Order>> GetEventById(
+            [Service] EventEnvelopeService repo,string id
+        )
+        {
+            var envelope = await repo.GetEventById(id);
+            return envelope;
+        }
+
+        
     }
 }

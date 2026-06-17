@@ -1,20 +1,50 @@
-version: "3.9"
+
 
 services:
 
+  # --------------------
+  # MESSAGE BROKER
+  # --------------------
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
-
-  PurchaseService:
-    build: .
-    container_name: purchaseservice
-    depends_on:
-      - rabbitmq
     environment:
-        - MAILJET_API_KEY=${MAILJET_API_KEY}
-        - MAILJET_SECRET=${MAILJET_SECRET}
-        - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  # --------------------
+  # PURCHASE SERVICE
+  # --------------------
+  purchaseservice:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: purchaseservice
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      QUEUE_NAME: listing_queue
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: guest
+      RABBITMQ_PASSWORD: guest
+    networks:
+      - backend
+    restart: unless-stopped
+# --------------------
+# NETWORK
+# --------------------
+networks:
+  backend:

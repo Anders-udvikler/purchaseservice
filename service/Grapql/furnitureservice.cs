@@ -52,7 +52,7 @@ namespace Furnitureservice
         {
             try
             {
-                return await _furnitureCollection.Find(f => f.Id.Equals(id)).FirstOrDefaultAsync();
+                return null;
             }
             catch (Exception ex)
             {
@@ -71,7 +71,7 @@ namespace Furnitureservice
         {
             try
             {
-                await _furnitureCollection.ReplaceOneAsync(f => f.Id.Equals(id), updatedFurniture);
+                
             }
             catch (Exception ex)
             {

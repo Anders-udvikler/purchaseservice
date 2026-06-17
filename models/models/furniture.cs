@@ -3,6 +3,7 @@
 using Categories;
 using Colors;
 using GraphProductView.Models;
+using HotChocolate;
 using Images;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -35,7 +36,7 @@ public class Furniture
     public string? Size { get; set; }
 
     [BsonElement("quantity")]
-    public string? Quantity { get; set; }
+    public int Quantity { get; set; }
 
     [BsonElement("price")]
     public int Price { get; set; }
@@ -44,6 +45,7 @@ public class Furniture
     public string? Condition { get; set; }
 
     [BsonElement("zip_code")]
+    [GraphQLName("zip_code")]
     public string? ZipCode { get; set; }
 
     [BsonElement("status")]

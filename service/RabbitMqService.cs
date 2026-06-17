@@ -3,103 +3,47 @@ using System.Text.Json;
 using RabbitMQ.Client;
 using service.interfaces;
 
-public class RabbitPublisher: IRabbitPublisher
+public class RabbitPublisher : IRabbitPublisher
 {
-    private readonly IModel _channel;
-    private readonly string _queueName = "listing_queue";
+    private readonly IConnection _connection;
 
     public RabbitPublisher()
     {
-        var factory = new ConnectionFactory { HostName = "localhost" };
-        var connection = factory.CreateConnection();
-        _channel = connection.CreateModel();
-
-        _channel.QueueDeclare(_queueName, false, false, false);
-    }
-
-/// <summary>
-/// 
-/// </summary>
-/// <typeparam name="T"></typeparam>
-/// <param name="message"></param>
-/// <param name="routingKey"></param>
-/// <returns></returns>
-/// <exception cref="NotImplementedException"></exception>
-    public Task PublishAsync<T>(T message, string routingKey)
-    {
-        throw new NotImplementedException();
-    }
-
-/// <summary>
-/// Publishes a message to the RabbitMQ queue indicating that a listing has been deleted. The message contains the GUID of the deleted listing and an event type of "ListingDeleted".
-/// </summary>
-/// <param name="guid">The GUID of the deleted listing.</param>
-/// <returns></returns>
-    public async Task PublishListingDeleted(Guid guid)
-    {
-        var message = new
+        var factory = new ConnectionFactory
         {
-            Guid = guid,
-            EventType = "ListingDeleted"
+            HostName = "rabbitmq",
+            AutomaticRecoveryEnabled = true
         };
 
-        var json = JsonSerializer.Serialize(message);
-        var body = Encoding.UTF8.GetBytes(json);
-
-        _channel.BasicPublish(
-            "",
-            _queueName,
-            null,
-            body
-        );
+        _connection = factory.CreateConnection();
     }
 
-/// <summary>
-/// Publishes a message to the RabbitMQ queue indicating that a listing has been updated. The message contains the GUID of the updated listing and an event type of "ListingUpdated".
-/// </summary>
-/// <param name="guid">The GUID of the updated listing.</param>
-/// <returns></returns>
-        public async Task PublishListingUpdated(Guid guid)
+    private IModel CreateChannel()
     {
-        var message = new
-        {
-            Guid = guid,
-            EventType = "ListingUpdated"
-        };
-
-        var json = JsonSerializer.Serialize(message);
-        var body = Encoding.UTF8.GetBytes(json);
-
-        _channel.BasicPublish(
-            "",
-            _queueName,
-            null,
-            body
-        );
+        return _connection.CreateModel();
     }
 
-
-/// <summary>
-/// Publishes a message to the RabbitMQ queue indicating that a listing has been created. The message contains the GUID of the created listing and an event type of "ListingCreated".
-/// </summary>
-/// <param name="guid">The GUID of the created listing.</param>
-/// <returns></returns>
-    public async Task PublishListingCreated(Guid guid)
+    public Task PublishAsync<T>(T message, string queueName)
     {
-        var message = new
-        {
-            Guid = guid,
-            EventType = "ListingCreated"
-        };
+        using var channel = CreateChannel();
 
-        var json = JsonSerializer.Serialize(message);
-        var body = Encoding.UTF8.GetBytes(json);
+        var body = Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(message));
 
-        _channel.BasicPublish(
-            "",
-            _queueName,
-            null,
-            body
-        );
+        var props = channel.CreateBasicProperties();
+        props.Persistent = true;
+
+        channel.BasicPublish(
+            exchange: "",              // default exchange
+            routingKey: queueName,    // MUST equal queue name
+            basicProperties: props,
+            body: body);
+
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _connection.Dispose();
     }
 }

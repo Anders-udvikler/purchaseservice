@@ -3,47 +3,72 @@ using System.Text.Json;
 using RabbitMQ.Client;
 using service.interfaces;
 
-public class RabbitPublisher : IRabbitPublisher
+public class RabbitPublisher : IDisposable, IRabbitPublisher
 {
     private readonly IConnection _connection;
+    private readonly IModel _channel;
+    private readonly object _lock = new();
 
     public RabbitPublisher()
     {
         var factory = new ConnectionFactory
         {
             HostName = "rabbitmq",
-            AutomaticRecoveryEnabled = true
+            AutomaticRecoveryEnabled = true,
+            DispatchConsumersAsync = true
         };
 
         _connection = factory.CreateConnection();
-    }
+        _channel = _connection.CreateModel();
 
-    private IModel CreateChannel()
-    {
-        return _connection.CreateModel();
+        _channel.BasicQos(0, 100, false);
     }
 
     public Task PublishAsync<T>(T message, string queueName)
     {
-        using var channel = CreateChannel();
+        try
+        {
+            var body = Encoding.UTF8.GetBytes(
+                JsonSerializer.Serialize(message));
 
-        var body = Encoding.UTF8.GetBytes(
-            JsonSerializer.Serialize(message));
+            var props = _channel.CreateBasicProperties();
+            props.Persistent = true;
 
-        var props = channel.CreateBasicProperties();
-        props.Persistent = true;
+            lock (_lock) // IMPORTANT: makes channel thread-safe
+            {
+                _channel.BasicPublish(
+                    exchange: "",
+                    routingKey: queueName,
+                    basicProperties: props,
+                    body: body);
+            }
 
-        channel.BasicPublish(
-            exchange: "",              // default exchange
-            routingKey: queueName,    // MUST equal queue name
-            basicProperties: props,
-            body: body);
-
-        return Task.CompletedTask;
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            // IMPORTANT: bubble up so OUTBOX worker can retry
+            throw new Exception("Rabbit publish failed", ex);
+        }
     }
 
     public void Dispose()
     {
-        _connection.Dispose();
+        try
+        {
+            if (_channel.IsOpen)
+                _channel.Close();
+
+            _channel.Dispose();
+
+            if (_connection.IsOpen)
+                _connection.Close();
+
+            _connection.Dispose();
+        }
+        catch
+        {
+            // ignore dispose errors
+        }
     }
 }

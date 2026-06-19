@@ -4,6 +4,8 @@ using models;
 using mutation;
 using Purchase.Models;
 using RabbitMQ.Client;
+using service;
+using service.Grapql;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,14 +15,18 @@ using System.Text.Json;
 [Route("test")]
 public class TestController : ControllerBase
 {
-    public RabbitPublisher _publisher { get; set; }
+    private RabbitPublisher _publisher { get; set; }
+    private EventEnvelopeService<Order> EnvelopeService;
+    private OrderService _orderservice;
     public TestController(RabbitPublisher publisher)
     {
         _publisher=publisher;
+        EnvelopeService= new EventEnvelopeService<Order>();
+        _orderservice = new OrderService();
     }
 
     [HttpPost("purchase")]
-    public IActionResult TestPurchase([FromBody] OrderCreated request)
+    public async Task<IActionResult> TestPurchase([FromBody] OrderCreated request)
     {
         if(request.UserId==null)
         {
@@ -31,15 +37,16 @@ public class TestController : ControllerBase
             Id=request.OrderId,
             UserGuid=request.UserId,
             OrderStatus=Purchase.Enums.OrderStatus.Pending,
+            email=request.Email
+
         };
-        new EventEnvelope<Order>
+         EventEnvelope<Order> envelope=new EventEnvelope<Order>
         {
-            eventId= Guid.NewGuid().ToString(),
             eventType= "created",
             eventVersion=1,
             occurredAt= new DateTime().Date,
             producer="purchase-service",
-            correlationId= "0",
+            correlationId= Request.Headers["My-Header"].ToString() ?? Guid.NewGuid().ToString(),
             payload=order
         };
         var message = new
@@ -49,13 +56,10 @@ public class TestController : ControllerBase
             User = request.UserId,
             Post = request.SalesPostGuid
         };
-        _publisher.PublishAsync(message,"product_storage");
+        await _publisher.PublishAsync(message,"product_storage");
+        await _orderservice.AddOrder(order);
+        await EnvelopeService.Addevent(envelope);
         return Ok("Test message sent");
     }
 }
 
-public class TestPurchaseRequest
-{
-    public string ProductId { get; set; }
-    public int Quantity { get; set; }
-}

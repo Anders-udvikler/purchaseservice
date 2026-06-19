@@ -6,27 +6,28 @@ using Stripe;
 namespace service.Grapql
 {
 
-    public class EventEnvelopeService
+    public class EventEnvelopeService<T>
     {
-        private readonly IMongoCollection<EventEnvelope<Order>> _eventCollection;
+        private readonly IMongoCollection<EventEnvelope<T>> _eventCollection;
 
 /// <summary>
 /// Initializes a new instance of the FurnitureService class. The constructor takes an IMongoClient object as a parameter, which is used to connect to the MongoDB database. It retrieves the "FurnitureDB" database and the "Furnitures" collection from the MongoDB client and assigns it to the _furnitureCollection field for further operations.
 /// </summary>
 /// <param name="furniture"></param>
 /// <returns></returns>
-        public async Task Addevent(EventEnvelope<Order> @event)
+        public async Task Addevent(EventEnvelope<T> envelope)
         {
             try
             {
-                await _eventCollection.InsertOneAsync(@event);
+                
+                await _eventCollection.InsertOneAsync(envelope);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error adding furniture: {ex.Message}");
                 throw;
             }
-            await _eventCollection.InsertOneAsync(@event);
+            await _eventCollection.InsertOneAsync(envelope);
         }
 
 /// <summary>
@@ -34,7 +35,7 @@ namespace service.Grapql
  ///
 /// </summary>
 /// <returns></returns>
-        public async Task<List<EventEnvelope<Order>>> GetAllEnvelopes()
+        public async Task<List<EventEnvelope<T>>> GetAllEnvelopes()
         {
             try
             {
@@ -52,7 +53,7 @@ namespace service.Grapql
 /// </summary>
 /// <param name="id">The ID of the furniture to retrieve.</param>
 /// <returns>The retrieved Furniture object, or null if not found.</returns>
-        public async Task<EventEnvelope<Order>> GetEventById(string id)
+        public async Task<EventEnvelope<T>> GetEventById(string id)
         {
             try
             {
@@ -71,7 +72,7 @@ namespace service.Grapql
 /// <param name="id">The ID of the furniture to update.</param>
 /// <param name="updatedFurniture">The updated furniture object.</param>
 /// <returns>The updated Furniture object.</returns>
-        public async Task UpdateFurniture(int id, Furniture updatedFurniture)
+        public async Task UpdateFurniture(string id, T furniture)
         {
             try
             {
@@ -82,6 +83,22 @@ namespace service.Grapql
                 Console.WriteLine($"Error updating furniture: {ex.Message}");
                 throw;
             }
+        }
+
+        public async Task<List<EventEnvelope<T>>> GetUnpublishedEvents()
+        {
+                return
+                 await _eventCollection.Find(x => !x.published).ToListAsync();
+        }
+
+        public async Task MarkPublished(string eventid)
+        {
+                var update = Builders<EventEnvelope<T>>
+                .Update
+                .Set(x => x.published, true)
+                .Set(x => x.publishedAt, DateTime.UtcNow);
+                await _eventCollection.UpdateOneAsync(
+            x => x.eventId == eventid,update);
         }
 
     }

@@ -14,6 +14,10 @@ public class Order
     [BsonElement("userGuid")]
     public string UserGuid { get; set; } = string.Empty;
 
+    
+    [BsonElement("email")]
+    public string email { get; set; } = string.Empty;
+
     [BsonElement("orderStatus")]
     public OrderStatus OrderStatus { get; set; }
 

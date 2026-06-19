@@ -1,119 +1,147 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Stripe;
 using Stripe.Checkout;
-using RabbitMQ.Client;
 using System.Text;
-using System.Text.Json;
-using DotNetEnv;
-using service.interfaces;
+using service;
+using Purchase.Models;
+using models;
+using Purchase.Enums;
+using service.Grapql;
 
 [ApiController]
 [Route("webhook")]
 public class WebhookController : ControllerBase
 {
+    private readonly ILogger<WebhookController> _logger;
+    private readonly EventEnvelopeService<Order> _envelopeService;
+    private readonly OrderService _orderService;
 
-    private IRabbitPublisher _publisher;
-
-    private ILogger<WebhookController> _logger;
-    public WebhookController(IRabbitPublisher publisher,ILogger<WebhookController> logger)
+    public WebhookController(
+        ILogger<WebhookController> logger,
+        EventEnvelopeService<Order> envelopeService,
+        OrderService orderService)
     {
-        _publisher=publisher;
-        _logger=logger;
+        _logger = logger;
+        _envelopeService = envelopeService;
+        _orderService = orderService;
     }
 
     [HttpPost]
     public async Task<IActionResult> Handle()
     {
-        DotNetEnv.Env.Load();
-        var json = await new StreamReader(Request.Body).ReadToEndAsync();
-
-        var secret = Environment.GetEnvironmentVariable("STRIPE_WEBHOOK_SECRET");
-
-        if (string.IsNullOrEmpty(secret))
-        {
-            _logger.LogInformation("Webhook secret is missing");
-            return BadRequest("Webhook secret not configured");
-        }
-
-        var signature = Request.Headers["Stripe-Signature"].FirstOrDefault();
-
-        if (string.IsNullOrEmpty(signature))
-        {
-            _logger.LogInformation("Missing Stripe-Signature header");
-            return BadRequest("Missing Stripe-Signature header");
-        }
-
         try
         {
+            var json = await new StreamReader(Request.Body).ReadToEndAsync();
+
+            var secret = Environment.GetEnvironmentVariable("STRIPE_WEBHOOK_SECRET");
+
+            if (string.IsNullOrWhiteSpace(secret))
+                return BadRequest("Webhook secret not configured");
+
+            var signature = Request.Headers["Stripe-Signature"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(signature))
+                return BadRequest("Missing Stripe-Signature header");
+
             var stripeEvent = EventUtility.ConstructEvent(
                 json,
                 signature,
                 secret
             );
 
+            // =====================================================
+            // SUCCESS EVENT
+            // =====================================================
             if (stripeEvent.Type == "checkout.session.completed")
             {
-                var session = stripeEvent.Data.Object as Session;
+                if (stripeEvent.Data.Object is not Session session)
+                    return BadRequest("Invalid session payload");
 
-                if (session == null)
+                if (!session.Metadata.TryGetValue("orderId", out var orderId) ||
+                    !session.Metadata.TryGetValue("eventId", out var eventId))
                 {
-                    _logger.LogInformation("Session is null");
-                    return BadRequest();
+                    return BadRequest("Missing metadata");
                 }
 
-                var productId = session.Metadata.ContainsKey("productId")
-                    ? session.Metadata["productId"]
-                    : "unknown";
+                var envelope = await _envelopeService.GetEventById(eventId);
 
-                var quantity = session.Metadata.ContainsKey("quantity")
-                    ? int.Parse(session.Metadata["quantity"])
-                    : 0;
-                var message = new
+                if (envelope == null)
+                    return BadRequest("Event not found");
+
+                envelope.payload.OrderStatus = OrderStatus.Completed;
+
+                await _orderService.UpdateOrder(envelope.payload);
+
+                var purchaseCompletedEvent = new EventEnvelope<Order>
                 {
+                    eventId = Guid.NewGuid().ToString(),
                     eventType = "PurchaseCompleted",
-                    guid = productId,
-                    quantity = quantity
+                    eventVersion = 1,
+                    occurredAt = DateTime.UtcNow,
+                    producer = "PurchaseService",
+                    correlationId = eventId,
+                    causationId = stripeEvent.Id,
+                    payload = envelope.payload,
+                    published = false
                 };
-                await _publisher.PublishAsync(message,"");
 
-                _logger.LogInformation("Message sent to RabbitMQ");
+                await _envelopeService.Addevent(purchaseCompletedEvent);
+
+                _logger.LogInformation("PurchaseCompleted processed for Order {OrderId}", orderId);
+
+                return Ok();
             }
-            if(stripeEvent.Type == "checkout.session.failed")
+
+            // =====================================================
+            // FAILURE EVENT
+            // =====================================================
+            if (stripeEvent.Type == "payment_intent.payment_failed")
             {
-                                var session = stripeEvent.Data.Object as Session;
+                if (stripeEvent.Data.Object is not PaymentIntent intent)
+                    return BadRequest("Invalid payment intent");
 
-                if (session == null)
+                if (!intent.Metadata.TryGetValue("orderId", out var orderId))
+                    return BadRequest("Missing orderId");
+
+                var envelope = await _envelopeService.GetEventById(orderId);
+
+                if (envelope == null)
+                    return BadRequest("Event not found");
+
+                envelope.payload.OrderStatus = OrderStatus.Cancelled;
+
+                await _orderService.UpdateOrder(envelope.payload);
+
+                var purchaseFailedEvent = new EventEnvelope<Order>
                 {
-                    _logger.LogInformation("Session is null");
-                    return BadRequest();
-                }
-
-                var productId = session.Metadata.ContainsKey("productId")
-                    ? session.Metadata["productId"]
-                    : "unknown";
-
-                var quantity = session.Metadata.ContainsKey("quantity")
-                    ? int.Parse(session.Metadata["quantity"])
-                    : 0;
-                var message = new
-                {
+                    eventId = Guid.NewGuid().ToString(),
                     eventType = "PurchaseFailed",
-                    guid = productId,
-                    quantity = quantity
+                    eventVersion = 1,
+                    occurredAt = DateTime.UtcNow,
+                    producer = "PurchaseService",
+                    correlationId = orderId,
+                    causationId = stripeEvent.Id,
+                    payload = envelope.payload,
+                    published = false
                 };
-                await _publisher.PublishAsync(message,"");
+
+                await _envelopeService.Addevent(purchaseFailedEvent);
+
+                _logger.LogInformation("PurchaseFailed processed for Order {OrderId}", orderId);
+
+                return Ok();
             }
 
             return Ok();
         }
         catch (StripeException ex)
         {
-            _logger.LogError("Stripe error: " + ex.Message);
+            _logger.LogError(ex, "Stripe webhook error");
             return BadRequest();
         }
         catch (Exception ex)
         {
-            _logger.LogError("General error: " + ex.Message);
+            _logger.LogError(ex, "Unexpected webhook error");
             return BadRequest();
         }
     }

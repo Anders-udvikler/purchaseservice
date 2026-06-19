@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Razor.TagHelpers;
 using MongoDB.Driver;
 using Purchase.Models;
 
@@ -5,19 +6,27 @@ namespace service
 {
     public class OrderService
     {
-                private readonly IMongoCollection<Order> _OrderCollection;
+        private readonly IMongoCollection<Order> _OrderCollection;
 
         /// <summary>
         /// Adds a new report to the MongoDB collection. The method takes a Report object as a parameter and inserts it into the collection. If the insertion is successful, it returns the added Report object. If an error occurs during the insertion process, it logs the error message and rethrows the exception.
         /// </summary>
         /// <param name="Report"></param>
         /// <returns></returns>
-        public async Task<Order> AddOrder(Order Report)
+        public async Task<Order> AddOrder(Order order)
         {
             try
             {
-                await _OrderCollection.InsertOneAsync(Report);
-                return Report;
+                if(order.OrderItems==null)
+                {
+                    throw new Exception();
+                }
+                if(order.UserGuid==null)
+                {
+                    throw new Exception();
+                }
+                await _OrderCollection.InsertOneAsync(order);
+                return order;
             }
             catch (Exception ex)
             {
@@ -67,6 +76,27 @@ namespace service
             try
             {
                 await _OrderCollection.DeleteOneAsync(r => r.Id == id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding report: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task UpdateOrder(Order order)
+        {
+            try
+            {
+                if(order.OrderItems==null)
+                {
+                    throw new Exception();
+                }
+                if(order.UserGuid==null)
+                {
+                    throw new Exception();
+                }
+                await _OrderCollection.ReplaceOneAsync(x => x.Id == order.Id,order);
             }
             catch (Exception ex)
             {

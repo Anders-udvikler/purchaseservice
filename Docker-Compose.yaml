@@ -1,10 +1,5 @@
-
-
 services:
 
-  # --------------------
-  # MESSAGE BROKER
-  # --------------------
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -22,16 +17,13 @@ services:
     networks:
       - backend
 
-  # --------------------
-  # PURCHASE SERVICE
-  # --------------------
   purchaseservice:
     build:
       context: .
       dockerfile: DockerFile
     container_name: purchaseservice
     ports:
-      - "8080:8080"
+      - "5001:8080"
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -40,11 +32,13 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: guest
       RABBITMQ_PASSWORD: guest
+
+      STRIPE_API_KEY: pk_test_xxx
+      STRIPE_SECRET_KEY: sk_test_xxx
+      STRIPE_WEBHOOK_SECRET: whsec_xxx
     networks:
       - backend
     restart: unless-stopped
-# --------------------
-# NETWORK
-# --------------------
+
 networks:
   backend:

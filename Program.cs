@@ -1,13 +1,24 @@
-using Furnitureservice;
+
 using service.interfaces;
-using Workers;
 using Purchase.Models;
 using service;
+using service.Grapql;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers (REST API)
-builder.Services.AddControllers();
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("MongoDb");
+    return new MongoClient(connectionString);
+});
+
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    return client.GetDatabase("YourDatabaseName");
+});
+
 
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -15,14 +26,18 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddOpenApi();
 
 // Services
-builder.Services.AddSingleton<FurnitureService>();
-builder.Services.AddSingleton<OrderService>();
+builder.Services.AddControllers();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<EventEnvelopeService<Order>>();
+builder.Services.AddScoped<StripeService>();
+builder.Services.AddScoped<ProcessedEventService>();
+builder.Services.AddHttpClient();
 
 // RabbitMQ
 builder.Services.AddSingleton<IRabbitPublisher, RabbitPublisher>();
 
 // Background Worker
-builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<PurchaseConsumerWorker>();
 
 // GraphQL
 builder.Services

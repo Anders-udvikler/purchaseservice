@@ -1,4 +1,3 @@
-
 using service.interfaces;
 using Purchase.Models;
 using service;
@@ -19,7 +18,6 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     return client.GetDatabase("YourDatabaseName");
 });
 
-
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -36,8 +34,13 @@ builder.Services.AddHttpClient();
 // RabbitMQ
 builder.Services.AddSingleton<IRabbitPublisher, RabbitPublisher>();
 
-// Background Worker
-builder.Services.AddHostedService<PurchaseConsumerWorker>();
+// Background Worker (FIXED 👇)
+var env = builder.Environment.EnvironmentName;
+
+if (env != "Testing")
+{
+    builder.Services.AddHostedService<PurchaseConsumerWorker>();
+}
 
 // GraphQL
 builder.Services
@@ -71,3 +74,5 @@ app.MapControllers();
 app.MapGraphQL();
 
 app.Run();
+
+public partial class Program { }

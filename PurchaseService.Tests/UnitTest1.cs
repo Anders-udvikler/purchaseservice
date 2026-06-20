@@ -1,10 +1,40 @@
-﻿namespace PurchaseService.Tests;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using service.interfaces;
 
-public class UnitTest1
+namespace PurchaseService.Tests;
+
+public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    [Fact]
-    public void Test1()
-    {
+    public Mock<IRabbitPublisher> RabbitMock { get; } = new();
+    public Mock<StripeService> StripeMock { get; } = new();
 
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+
+        builder.ConfigureServices(services =>
+        {
+            // Remove real RabbitMQ
+            var descriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IRabbitPublisher));
+
+            if (descriptor != null)
+                services.Remove(descriptor);
+
+            // Replace with mock
+            services.AddSingleton(RabbitMock.Object);
+
+            // OPTIONAL: mock Stripe if used
+            var stripeDesc = services.SingleOrDefault(
+                d => d.ServiceType == typeof(StripeService));
+
+            if (stripeDesc != null)
+                services.Remove(stripeDesc);
+
+            services.AddSingleton(StripeMock.Object);
+        });
     }
 }

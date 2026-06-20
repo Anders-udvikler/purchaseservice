@@ -13,13 +13,13 @@ using service.Grapql;
 public class WebhookController : ControllerBase
 {
     private readonly ILogger<WebhookController> _logger;
-    private readonly EventEnvelopeService<Order> _envelopeService;
-    private readonly OrderService _orderService;
+    private readonly IEventEnvelopeService<Order> _envelopeService;
+    private readonly IOrderService _orderService;
 
     public WebhookController(
         ILogger<WebhookController> logger,
-        EventEnvelopeService<Order> envelopeService,
-        OrderService orderService)
+        IEventEnvelopeService<Order> envelopeService,
+        IOrderService orderService)
     {
         _logger = logger;
         _envelopeService = envelopeService;
@@ -81,7 +81,7 @@ public class WebhookController : ControllerBase
                     published = false
                 };
 
-                await _envelopeService.Addevent(envelope);
+                await _envelopeService.AddEvent(envelope);
 
                 _logger.LogInformation("OrderCompleted processed for {OrderId}", orderId);
 
@@ -124,7 +124,7 @@ public class WebhookController : ControllerBase
                     published = false
                 };
 
-                await _envelopeService.Addevent(envelope);
+                await _envelopeService.AddEvent(envelope);
 
                 _logger.LogInformation("OrderFailed processed for {OrderId}", orderId);
 

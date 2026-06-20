@@ -6,7 +6,7 @@ using Stripe;
 namespace service.Grapql
 {
 
-    public class EventEnvelopeService<T>
+    public class EventEnvelopeService<T>:IEventEnvelopeService<T>
     {
         private readonly IMongoCollection<EventEnvelope<T>> _eventCollection;
 
@@ -15,7 +15,7 @@ namespace service.Grapql
 /// </summary>
 /// <param name="furniture"></param>
 /// <returns></returns>
-        public async Task Addevent(EventEnvelope<T> envelope)
+        public async Task AddEvent(EventEnvelope<T> envelope)
         {
             try
             {
@@ -72,7 +72,7 @@ namespace service.Grapql
 /// <param name="id">The ID of the furniture to update.</param>
 /// <param name="updatedFurniture">The updated furniture object.</param>
 /// <returns>The updated Furniture object.</returns>
-public async Task UpdateFurniture(string id, EventEnvelope<T> furniture)
+public async Task UpdateEvent(string id, EventEnvelope<T> furniture)
 {
     try
     {
@@ -105,6 +105,5 @@ public async Task UpdateFurniture(string id, EventEnvelope<T> furniture)
                 await _eventCollection.UpdateOneAsync(
             x => x.eventId == eventid,update);
         }
-
     }
 }

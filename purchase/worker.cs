@@ -2,10 +2,11 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using Purchase.Enums;
 using Purchase.Models;
+using Purchase.Enums;
 using service;
 using models;
 using service.Grapql;
@@ -16,14 +17,8 @@ public class PurchaseConsumerWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHttpClientFactory _httpClientFactory;
 
-    private IConnection _connection;
-    private IModel _channel;
-
-    private const string MainQueue = "purchase_queue";
-    private const string RetryQueue = "purchase_retry_queue";
-    private const string DlqQueue = "purchase_dlq";
-
-    private const int MaxRetries = 5;
+    private IConnection? _connection;
+    private IModel? _channel;
 
     public PurchaseConsumerWorker(
         ILogger<PurchaseConsumerWorker> logger,
@@ -33,58 +28,28 @@ public class PurchaseConsumerWorker : BackgroundService
         _logger = logger;
         _scopeFactory = scopeFactory;
         _httpClientFactory = httpClientFactory;
-
-        InitializeRabbitMq();
     }
 
-    private void InitializeRabbitMq()
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
         var factory = new ConnectionFactory
         {
             HostName = "rabbitmq",
-            DispatchConsumersAsync = true,
-            AutomaticRecoveryEnabled = true,
-            NetworkRecoveryInterval = TimeSpan.FromSeconds(5),
-            TopologyRecoveryEnabled = true
+            DispatchConsumersAsync = true
         };
 
         _connection = factory.CreateConnection();
         _channel = _connection.CreateModel();
 
-        // MAIN QUEUE
         _channel.QueueDeclare(
-            queue: MainQueue,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: new Dictionary<string, object>
-            {
-                ["x-dead-letter-exchange"] = "",
-                ["x-dead-letter-routing-key"] = RetryQueue
-            });
-
-        // RETRY QUEUE
-        _channel.QueueDeclare(
-            queue: RetryQueue,
-            durable: true,
-            exclusive: false,
-            autoDelete: false,
-            arguments: new Dictionary<string, object>
-            {
-                ["x-message-ttl"] = 5000, // base delay
-                ["x-dead-letter-exchange"] = "",
-                ["x-dead-letter-routing-key"] = MainQueue
-            });
-
-        // DLQ
-        _channel.QueueDeclare(
-            queue: DlqQueue,
+            queue: "purchase_queue",
             durable: true,
             exclusive: false,
             autoDelete: false);
 
-        // BACKPRESSURE CONTROL
-        _channel.BasicQos(0, 5, false);
+        _logger.LogInformation("PurchaseConsumerWorker started");
+
+        return base.StartAsync(cancellationToken);
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -93,146 +58,70 @@ public class PurchaseConsumerWorker : BackgroundService
 
         consumer.Received += async (sender, ea) =>
         {
-            if (stoppingToken.IsCancellationRequested)
-                return;
-
-            int retryCount = GetRetryCount(ea);
-
             try
             {
-                var json = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var body = ea.Body.ToArray();
+                var json = Encoding.UTF8.GetString(body);
+
                 var evt = JsonSerializer.Deserialize<EventEnvelope<Order>>(json);
 
-                if (evt == null)
-                    throw new Exception("Invalid message");
+                if (evt?.payload == null)
+                {
+                    _logger.LogWarning("Invalid message received");
+                    return;
+                }
 
                 using var scope = _scopeFactory.CreateScope();
 
-                var processed = scope.ServiceProvider.GetRequiredService<ProcessedEventService>();
-                var envelope = scope.ServiceProvider.GetRequiredService<EventEnvelopeService<Order>>();
-                var orderService = scope.ServiceProvider.GetRequiredService<OrderService>();
+                var processedService = scope.ServiceProvider.GetRequiredService<IProcessedEventService>();
+                var orderService = scope.ServiceProvider.GetRequiredService<IOrderService>();
 
-                // IDEMPOTENCY (must be atomic in DB ideally)
-                if (!await processed.AlreadyProcessed(evt.eventId))
+                if (await processedService.AlreadyProcessed(evt.eventId))
                 {
-                    _channel.BasicAck(ea.DeliveryTag, false);
+                    _logger.LogInformation("Event already processed: {Id}", evt.eventId);
                     return;
                 }
 
-                var http = _httpClientFactory.CreateClient();
+                // Example HTTP call to API Gateway
+                var client = _httpClientFactory.CreateClient();
 
-                if (evt.eventType == "ItemReserved")
+                var response = await client.PostAsync(
+                    "http://api-gateway:8080/purchase",
+                    new StringContent(
+                        JsonSerializer.Serialize(evt.payload),
+                        Encoding.UTF8,
+                        "application/json"
+                    )
+                );
+
+                if (!response.IsSuccessStatusCode)
                 {
-                    evt.payload.OrderStatus = OrderStatus.Completed;
-
-                    await envelope.UpdateFurniture(evt.eventId, evt);
-
-                    var response = await http.PostAsync(
-                        "http://api:8080/createpurchase",
-                        new StringContent(JsonSerializer.Serialize(evt.payload),
-                        Encoding.UTF8, "application/json"));
-
-                    if (!response.IsSuccessStatusCode)
-                        throw new Exception($"API failed: {response.StatusCode}");
-                }
-                else if (evt.eventType == "ItemReservedFailed")
-                {
-                    evt.payload.OrderStatus = OrderStatus.Cancelled;
-
-                    await envelope.UpdateFurniture(evt.eventId, evt);
-                    await orderService.UpdateOrder(evt.payload);
-                }
-                else
-                {
-                    _logger.LogWarning("Unknown event type {Type}", evt.eventType);
+                    _logger.LogError("API call failed: {Status}", response.StatusCode);
+                    return;
                 }
 
-                _channel.BasicAck(ea.DeliveryTag, false);
+                await processedService.MarkProcessed(evt.eventId);
+
+                _logger.LogInformation("Processed purchase event {Id}", evt.eventId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Processing failed");
-
-                retryCount++;
-
-                if (retryCount > MaxRetries)
-                {
-                    MoveToDlq(ea.Body);
-
-                    _channel.BasicAck(ea.DeliveryTag, false);
-                    return;
-                }
-
-                PublishToRetry(ea.Body, retryCount);
-
-                _channel.BasicAck(ea.DeliveryTag, false);
+                _logger.LogError(ex, "Error processing message");
             }
         };
 
         _channel.BasicConsume(
-            queue: MainQueue,
-            autoAck: false,
+            queue: "purchase_queue",
+            autoAck: true,
             consumer: consumer);
 
         return Task.CompletedTask;
     }
 
-    private int GetRetryCount(BasicDeliverEventArgs ea)
-    {
-        if (ea.BasicProperties?.Headers == null)
-            return 0;
-
-        if (ea.BasicProperties.Headers.TryGetValue("retry-count", out var value))
-            return Convert.ToInt32(value);
-
-        return 0;
-    }
-
-    private void PublishToRetry(ReadOnlyMemory<byte> body, int retryCount)
-    {
-        var props = _channel.CreateBasicProperties();
-        props.Persistent = true;
-        props.Headers = new Dictionary<string, object>
-        {
-            ["retry-count"] = retryCount
-        };
-
-        var delay = (int)Math.Pow(2, retryCount) * 1000;
-
-        props.Headers["x-delay"] = delay;
-
-        _channel.BasicPublish(
-            exchange: "",
-            routingKey: RetryQueue,
-            basicProperties: props,
-            body: body);
-    }
-
-    private void MoveToDlq(ReadOnlyMemory<byte> body)
-    {
-        _channel.BasicPublish(
-            exchange: "",
-            routingKey: DlqQueue,
-            basicProperties: null,
-            body: body);
-
-        _logger.LogWarning("Message moved to DLQ");
-    }
-
     public override void Dispose()
     {
-        try
-        {
-            _channel?.Close();
-            _connection?.Close();
-            _channel?.Dispose();
-            _connection?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Dispose error");
-        }
-
+        _channel?.Close();
+        _connection?.Close();
         base.Dispose();
     }
 }

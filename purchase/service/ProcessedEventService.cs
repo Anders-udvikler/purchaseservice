@@ -3,7 +3,7 @@ using MongoDB.Driver;
 namespace service {
 
 
-public class ProcessedEventService
+public class ProcessedEventService:IProcessedEventService
 {
     private readonly IMongoCollection<ProcessedEvents> _collection;
 

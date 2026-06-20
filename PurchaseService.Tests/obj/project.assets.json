@@ -5743,8 +5743,8 @@
     },
     "purchaseservice/1.0.0": {
       "type": "project",
-      "path": "../purchase/purchaseservice.csproj",
-      "msbuildProject": "../purchase/purchaseservice.csproj"
+      "path": "../Purchase/purchaseservice.csproj",
+      "msbuildProject": "../Purchase/purchaseservice.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -5790,8 +5790,8 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\Users\\ander\\purchaseservice\\purchase\\purchaseservice.csproj": {
-              "projectPath": "C:\\Users\\ander\\purchaseservice\\purchase\\purchaseservice.csproj"
+            "C:\\Users\\ander\\purchaseservice\\Purchase\\purchaseservice.csproj": {
+              "projectPath": "C:\\Users\\ander\\purchaseservice\\Purchase\\purchaseservice.csproj"
             }
           }
         }

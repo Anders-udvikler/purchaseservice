@@ -19,13 +19,13 @@ public class TestController : ControllerBase
 {
     private readonly ILogger<TestController> _logger;
     private readonly IRabbitPublisher _publisher;
-    private readonly EventEnvelopeService<Order> _envelopeService;
-    private readonly OrderService _orderService;
+    private readonly IEventEnvelopeService<Order> _envelopeService;
+    private readonly IOrderService _orderService;
 
     public TestController(
         IRabbitPublisher publisher,
-        EventEnvelopeService<Order> envelopeService,
-        OrderService orderService,
+        IEventEnvelopeService<Order> envelopeService,
+        IOrderService orderService,
         ILogger<TestController> logger)
     {
         _publisher = publisher;
@@ -56,26 +56,24 @@ public class TestController : ControllerBase
             email = request.Email
         };
 
-        // FIX 3: correlation safe header handling
-        var correlationId = Request.Headers["My-Header"].FirstOrDefault()
-                            ?? Guid.NewGuid().ToString();
+        string guid= Guid.NewGuid().ToString();
 
         // FIX 4: event envelope correct naming
         var envelope = new EventEnvelope<Order>
         {
-            eventId = Guid.NewGuid().ToString(),
+            eventId = guid,
             eventType = "OrderCreated",
             eventVersion = 1,
             occurredAt = DateTime.UtcNow,
             producer = "purchase-service",
-            correlationId = correlationId,
+            correlationId =guid,
             payload = order,
             published = false
         };
 
         // FIX 5: domain-first persistence order
         await _orderService.AddOrder(order);
-        await _envelopeService.Addevent(envelope);
+        await _envelopeService.AddEvent(envelope);
 
         await _publisher.PublishAsync(envelope, "product_storage");
 

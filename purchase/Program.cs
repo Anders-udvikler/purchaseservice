@@ -25,10 +25,10 @@ builder.Services.AddOpenApi();
 
 // Services
 builder.Services.AddControllers();
-builder.Services.AddScoped<OrderService>();
-builder.Services.AddScoped<EventEnvelopeService<Order>>();
+builder.Services.AddScoped<IOrderService,OrderService>();
+builder.Services.AddScoped(typeof(IEventEnvelopeService<>), typeof(EventEnvelopeService<>));
 builder.Services.AddScoped<StripeService>();
-builder.Services.AddScoped<ProcessedEventService>();
+builder.Services.AddScoped<IProcessedEventService,ProcessedEventService>();
 builder.Services.AddHttpClient();
 
 // RabbitMQ
@@ -74,5 +74,3 @@ app.MapControllers();
 app.MapGraphQL();
 
 app.Run();
-
-public partial class Program { }

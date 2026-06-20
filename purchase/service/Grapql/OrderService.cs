@@ -4,7 +4,7 @@ using Purchase.Models;
 
 namespace service
 {
-    public class OrderService
+    public class OrderService:IOrderService
     {
         private readonly IMongoCollection<Order> _OrderCollection;
 

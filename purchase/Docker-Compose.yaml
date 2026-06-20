@@ -28,6 +28,9 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+
       QUEUE_NAME: listing_queue
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: guest
